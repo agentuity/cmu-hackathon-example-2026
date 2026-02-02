@@ -1,147 +1,93 @@
-# cmu-hackathon-2026
+# Hackathon Scout
 
-A new Agentuity project created with `agentuity create`.
+An AI agent that searches ArXiv for research papers and suggests hackathon project ideas. Built with [Agentuity](https://agentuity.dev).
 
-## What You Get
+## What It Does
 
-A fully configured Agentuity project with:
+1. You enter a research topic (e.g., "AI agents", "diffusion models")
+2. The agent fetches papers from ArXiv
+3. GPT-5 analyzes the papers and suggests hackathon project ideas
+4. Results stream to your browser in real-time
 
-- ✅ **TypeScript** - Full type safety out of the box
-- ✅ **Bun runtime** - Fast JavaScript runtime and package manager
-- ✅ **Hot reload** - Development server with auto-rebuild
-- ✅ **Example agent** - Sample "hello" agent to get started
-- ✅ **React frontend** - Pre-configured web interface
-- ✅ **API routes** - Example API endpoints
-- ✅ **Type checking** - TypeScript configuration ready to go
+## Quick Start
+
+### Install Agentuity
+
+Reference the docs [here:](https://agentuity.dev/Get-Started/installation)
+
+### Run the project
+
+```bash
+# Install dependencies
+bun install
+
+# Start development server
+bun run dev
+
+# Deploy
+bun run deploy # or agentuity deploy
+```
+
+Open http://localhost:3500 in your browser.
 
 ## Project Structure
 
 ```
-my-app/
-├── src/
-│   ├── agent/            # Agent definitions
-│   │   └── hello/
-│   │       ├── agent.ts  # Example agent
-│   │       └── index.ts  # Default exports
-│   ├── api/              # API definitions
-│   │   └── index.ts      # Example routes
-│   └── web/              # React web application
-│       ├── public/       # Static assets
-│       ├── App.tsx       # Main React component
-│       ├── frontend.tsx  # Entry point
-│       └── index.html    # HTML template
-├── AGENTS.md             # Agent guidelines
-├── app.ts                # Application entry point
-├── tsconfig.json         # TypeScript configuration
-├── package.json          # Dependencies and scripts
-└── README.md             # Project documentation
+src/
+  agent/hackathon-scout/   # The AI agent
+    index.ts               # Fetches ArXiv, streams GPT-5 analysis
+  api/
+    index.ts               # SSE endpoint for real-time streaming
+  web/
+    App.tsx                # React frontend with activity log
 ```
 
-## Available Commands
+## Key Concepts
 
-After creating your project, you can run:
+### Agent (`src/agent/hackathon-scout/index.ts`)
 
-### Development
-
-```bash
-bun dev
-```
-
-Starts the development server at `http://localhost:3500`
-
-### Build
-
-```bash
-bun build
-```
-
-Compiles your application into the `.agentuity/` directory
-
-### Type Check
-
-```bash
-bun typecheck
-```
-
-Runs TypeScript type checking
-
-### Deploy to Agentuity
-
-```bash
-bun run deploy
-```
-
-Deploys your application to the Agentuity cloud
-
-## Next Steps
-
-After creating your project:
-
-1. **Customize the example agent** - Edit `src/agent/hello/agent.ts`
-2. **Add new agents** - Create new folders in `src/agent/`
-3. **Add new APIs** - Create new folders in `src/api/`
-4. **Add Web files** - Create new routes in `src/web/`
-5. **Customize the UI** - Edit `src/web/app.tsx`
-6. **Configure your app** - Modify `app.ts` to add middleware, configure services, etc.
-
-## Creating Custom Agents
-
-Create a new agent by adding a folder in `src/agent/`:
+Uses `createAgent()` to define an agent with typed input/output schemas:
 
 ```typescript
-// src/agent/my-agent/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
-
-const agent = createAgent({
-	description: 'My amazing agent',
-	schema: {
-		input: s.object({
-			name: s.string(),
-		}),
-		output: s.string(),
-	},
-	handler: async (_ctx, { name }) => {
-		return `Hello, ${name}! This is my custom agent.`;
-	},
+const agent = createAgent('hackathon-scout', {
+  description: 'Searches ArXiv for papers and suggests hackathon project ideas',
+  schema: { input: AgentInput, output: AgentOutput },
+  handler: async (ctx, { query }) => { ... }
 });
-
-export default agent;
 ```
 
-## Adding API Routes
+### SSE Streaming (`src/api/index.ts`)
 
-Create custom routes in `src/api/`:
+Uses Server-Sent Events to stream updates to the browser:
 
 ```typescript
-// src/api/my-agent/route.ts
-import { createRouter } from '@agentuity/runtime';
-import myAgent from './agent';
-
-const router = createRouter();
-
-router.get('/', async (c) => {
-	const result = await myAgent.run({ message: 'Hello!' });
-	return c.json(result);
-});
-
-router.post('/', myAgent.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const result = await myAgent.run(data);
-	return c.json(result);
-});
-
-export default router;
+api.get('/search', sse(async (c, stream) => {
+  await stream.writeSSE({ data: JSON.stringify({ type: 'token', content: chunk }) });
+}));
 ```
+
+### React Frontend (`src/web/App.tsx`)
+
+Uses `useEventStream` from `@agentuity/react` to receive real-time updates:
+
+```typescript
+const { data } = useEventStream('/api/search', {
+  query: new URLSearchParams({ query }),
+});
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start development server |
+| `bun run build` | Build for production |
+| `bun run typecheck` | Run TypeScript type checking |
+| `bun run deploy` | Deploy to Agentuity cloud |
 
 ## Learn More
 
-- [Agentuity Documentation](https://agentuity.dev)
-- [Bun Documentation](https://bun.sh/docs)
-- [Hono Documentation](https://hono.dev/)
-- [Zod Documentation](https://zod.dev/)
-
-## Requirements
-
-- [Bun](https://bun.sh/) v1.0 or higher
-- TypeScript 5+
+- [Agentuity Docs](https://agentuity.dev) - Full documentation
+- [Creating Agents](https://agentuity.dev/Agents) - Agent development guide
+- [SSE Routes](https://agentuity.dev/Routes/sse) - Server-Sent Events
+- [React Hooks](https://agentuity.dev/Frontend/react-hooks) - Frontend integration
