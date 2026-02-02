@@ -37,7 +37,7 @@ src/
   agent/hackathon-scout/   # The AI agent
     index.ts               # Fetches ArXiv, streams GPT-5 analysis
   api/
-    index.ts               # SSE endpoint for real-time streaming
+    index.ts               # Streaming endpoint with stream() middleware
   web/
     App.tsx                # React frontend with activity log
 ```
@@ -67,6 +67,10 @@ api.post('/search', agent.validator(), stream(async (c) => {
 }));
 ```
 
+### Streaming Flow
+
+The agent uses AI SDK tool-calling with `streamText` to generate responses. The API streams these via `stream()` middleware, and the React frontend consumes them with `useAPI` streaming—no SSE required.
+
 ### React Frontend (`src/web/App.tsx`)
 
 Uses `useAPI` from `@agentuity/react` to receive streamed chunks:
@@ -89,5 +93,5 @@ await invoke({ query, maxResults: 5 });
 
 - [Agentuity Docs](https://agentuity.dev) - Full documentation
 - [Creating Agents](https://agentuity.dev/Agents) - Agent development guide
-- [SSE Routes](https://agentuity.dev/Routes/sse) - Server-Sent Events
+- [Streaming Routes](https://agentuity.dev/Routes/streaming) - Real-time streaming
 - [React Hooks](https://agentuity.dev/Frontend/react-hooks) - Frontend integration
