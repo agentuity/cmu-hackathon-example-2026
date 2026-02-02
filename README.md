@@ -56,24 +56,24 @@ const agent = createAgent('hackathon-scout', {
 });
 ```
 
-### SSE Streaming (`src/api/index.ts`)
+### Streaming Route (`src/api/index.ts`)
 
-Uses Server-Sent Events to stream updates to the browser:
+Uses `stream()` middleware to stream agent output:
 
 ```typescript
-api.get('/search', sse(async (c, stream) => {
-  await stream.writeSSE({ data: JSON.stringify({ type: 'token', content: chunk }) });
+api.post('/search', agent.validator(), stream(async (c) => {
+  const body = await c.req.json();
+  return agent.run(body);
 }));
 ```
 
 ### React Frontend (`src/web/App.tsx`)
 
-Uses `useEventStream` from `@agentuity/react` to receive real-time updates:
+Uses `useAPI` from `@agentuity/react` to receive streamed chunks:
 
 ```typescript
-const { data } = useEventStream('/api/search', {
-  query: new URLSearchParams({ query }),
-});
+const { invoke } = useAPI({ route: 'POST /api/search' });
+await invoke({ query, maxResults: 5 });
 ```
 
 ## Commands

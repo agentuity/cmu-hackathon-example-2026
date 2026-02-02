@@ -13,16 +13,18 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
+		"@agentuity/evals": "latest",
 		"@agentuity/frontend": "latest",
 		"@agentuity/react": "latest",
 		"@agentuity/runtime": "latest",
 		"@agentuity/schema": "latest",
 		"@agentuity/workbench": "latest",
+		"@ai-sdk/openai": "^3.0.25",
+		"ai": "^6.0.68",
+		"groq-sdk": "latest",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
-		"@agentuity/evals": "latest",
-		"openai": "latest",
-		"groq-sdk": "latest"
+		"react-markdown": "^10.1.0"
 	},
 	"devDependencies": {
 		"@agentuity/cli": "latest",

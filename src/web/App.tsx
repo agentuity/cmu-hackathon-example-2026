@@ -1,35 +1,37 @@
 /**
  * Hackathon Scout - Frontend
- * 
- * A React frontend that connects to our agent via SSE (Server-Sent Events).
- * Shows real-time activity as the agent works: tool calls, LLM streaming, etc.
- * 
+ *
+ * A React frontend that connects to our agent via the Agentuity SDK.
+ * Shows real-time activity log and LLM response as the agent works.
+ *
  * Key concepts:
- * - useEventStream: Agentuity hook for SSE connections
- * - Activity log: Shows what the agent is doing in real-time
+ * - useAPI for streaming responses with structured events
+ * - Activity log: shows tool calls, LLM start, completion status
  * - Token streaming: LLM response appears word-by-word
- * 
+ *
  * Learn more: https://agentuity.dev/Frontend/react-hooks
  */
 
-import { useEventStream } from '@agentuity/react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAPI } from '@agentuity/react';
+import { useState, useCallback, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import './App.css';
 
 // ----- Types -----
 
-// Messages sent from the server via SSE
-interface StreamMessage {
-	type: 'tool_call' | 'tool_result' | 'llm_start' | 'token' | 'complete' | 'error';
-	message?: string;
-	content?: string;
-}
+type StreamEvent =
+	| { type: 'tool_call'; tool: string; message: string }
+	| { type: 'tool_result'; tool: string; message: string }
+	| { type: 'llm_start'; model: string; message: string }
+	| { type: 'token'; content: string }
+	| { type: 'complete'; message: string }
+	| { type: 'error'; message: string };
 
-// Activity log entry (tool calls, LLM activity, etc.)
-interface ActivityEntry {
-	id: number;
-	type: string;
+interface ActivityItem {
+	id: string;
+	type: StreamEvent['type'];
 	message: string;
+	timestamp: Date;
 }
 
 // ----- Constants -----
@@ -46,66 +48,103 @@ const EXAMPLE_PROMPTS = [
 
 export function App() {
 	const [query, setQuery] = useState('');
-	const [activeQuery, setActiveQuery] = useState<string | null>(null);
 	const [response, setResponse] = useState('');
-	const [activities, setActivities] = useState<ActivityEntry[]>([]);
+	const [activity, setActivity] = useState<ActivityItem[]>([]);
 	const [status, setStatus] = useState<'idle' | 'loading' | 'complete' | 'error'>('idle');
-	const activityIdRef = useRef(0);
+
+	const handleChunk = useCallback((chunk: unknown) => {
+		// Parse the event - chunk may be string or already parsed object
+		let event: StreamEvent;
+		if (typeof chunk === 'string') {
+			try {
+				event = JSON.parse(chunk);
+			} catch {
+				return chunk;
+			}
+		} else {
+			event = chunk as StreamEvent;
+		}
+
+		// Route event to appropriate handler
+		switch (event.type) {
+			case 'tool_call':
+			case 'tool_result':
+			case 'llm_start':
+				setActivity(prev => [...prev, {
+					id: `${event.type}-${Date.now()}`,
+					type: event.type,
+					message: event.message,
+					timestamp: new Date(),
+				}]);
+				break;
+
+			case 'token':
+				setResponse(prev => prev + event.content);
+				break;
+
+			case 'complete':
+				setActivity(prev => [...prev, {
+					id: `complete-${Date.now()}`,
+					type: 'complete',
+					message: event.message,
+					timestamp: new Date(),
+				}]);
+				setStatus('complete');
+				break;
+
+			case 'error':
+				setActivity(prev => [...prev, {
+					id: `error-${Date.now()}`,
+					type: 'error',
+					message: event.message,
+					timestamp: new Date(),
+				}]);
+				setStatus('error');
+				break;
+		}
+
+		return chunk;
+	}, []);
+
+	const { invoke, isLoading: isStreaming, error } = useAPI({
+		route: 'POST /api/search',
+		delimiter: '\n',
+		onChunk: handleChunk,
+	});
 
 	// Start a new search
-	const handleSearch = useCallback((searchQuery: string) => {
+	const handleSearch = useCallback(async (searchQuery: string) => {
 		if (!searchQuery.trim()) return;
+
 		setQuery(searchQuery);
 		setResponse('');
-		setActivities([]);
+		setActivity([]);
 		setStatus('loading');
-		activityIdRef.current = 0;
-		setActiveQuery(searchQuery);
-	}, []);
 
-	// Add an activity to the log
-	const handleActivity = useCallback((entry: Omit<ActivityEntry, 'id'>) => {
-		setActivities(prev => [...prev, { ...entry, id: ++activityIdRef.current }]);
-	}, []);
+		try {
+			await invoke({ query: searchQuery, maxResults: 5 });
+			// Status will be set by complete/error events
+		} catch (err) {
+			console.error('Search error:', err);
+			setStatus('error');
+		}
+	}, [invoke]);
 
-	// Update the streamed response text
-	const handleStreamUpdate = useCallback((text: string) => {
-		setResponse(text);
-	}, []);
-
-	// Mark search as complete
-	const handleComplete = useCallback(() => {
-		setStatus('complete');
-		setActiveQuery(null);
-	}, []);
-
-	// Handle errors
-	const handleError = useCallback((message: string) => {
-		setStatus('error');
-		handleActivity({ type: 'error', message });
-		setActiveQuery(null);
-	}, [handleActivity]);
+	useEffect(() => {
+		if (error) {
+			setStatus('error');
+		}
+	}, [error]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		handleSearch(query);
 	};
 
-	const isLoading = status === 'loading';
+	const isLoading = status === 'loading' || isStreaming;
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-			{/* SSE Stream Component - only renders when searching */}
-			{activeQuery && (
-				<SearchStream
-					query={activeQuery}
-					onStreamUpdate={handleStreamUpdate}
-					onActivity={handleActivity}
-					onComplete={handleComplete}
-					onError={handleError}
-				/>
-			)}
-
 			{/* Header */}
 			<header className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
 				<div className="max-w-4xl mx-auto px-4 py-6">
@@ -159,26 +198,38 @@ export function App() {
 					</div>
 				)}
 
-				{/* Activity Log - shows what the agent is doing */}
-				{activities.length > 0 && (
+				{/* Activity Log */}
+				{activity.length > 0 && (
 					<div className="mb-6">
-						<h2 className="text-sm font-medium text-white/60 mb-2">Agent Activity</h2>
+						<h2 className="text-sm font-medium text-white/60 mb-2">Activity</h2>
 						<div className="space-y-1">
-							{activities.map((activity) => (
+							{activity.map((item) => (
 								<div
-									key={activity.id}
-									className="flex items-center gap-2 text-sm text-white/80 bg-white/5 rounded px-3 py-1.5"
+									key={item.id}
+									className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 ${
+										item.type === 'error'
+											? 'bg-red-500/20 text-red-200'
+											: item.type === 'complete'
+											? 'bg-green-500/20 text-green-200'
+											: 'bg-white/5 text-white/70'
+									}`}
 								>
-									<span>{activity.message}</span>
-									{isLoading && activity.id === activities.length && <Spinner />}
+									<ActivityIcon type={item.type} />
+									<span>{item.message}</span>
 								</div>
 							))}
+							{isLoading && status !== 'complete' && status !== 'error' && (
+								<div className="px-3 py-2 rounded-lg text-sm flex items-center gap-2 bg-white/5 text-white/70">
+									<Spinner />
+									<span>Processing...</span>
+								</div>
+							)}
 						</div>
 					</div>
 				)}
 
 				{/* Error State */}
-				{status === 'error' && (
+				{status === 'error' && activity.length === 0 && (
 					<div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/50 text-red-200">
 						Something went wrong. Please try again.
 					</div>
@@ -188,9 +239,46 @@ export function App() {
 				{response && (
 					<div className="mb-8">
 						<h2 className="text-xl font-semibold text-white mb-4">💡 Results</h2>
-						<div className="p-6 rounded-lg bg-white/5 border border-white/10 text-white/90 whitespace-pre-wrap leading-relaxed">
-							{response}
-							{isLoading && <span className="inline-block w-2 h-5 bg-purple-400 animate-pulse ml-0.5" />}
+						<div className="p-6 rounded-lg bg-white/5 border border-white/10 text-white/90 leading-relaxed prose prose-invert prose-purple max-w-none">
+							<ReactMarkdown
+								components={{
+									a: ({ node, ...props }) => (
+										<a
+											{...props}
+											target="_blank"
+											rel="noreferrer"
+											className="text-purple-300 hover:text-purple-200 hover:underline"
+										/>
+									),
+									p: ({ node, ...props }) => (
+										<p {...props} className="mb-4 last:mb-0" />
+									),
+									ul: ({ node, ...props }) => (
+										<ul {...props} className="list-disc list-inside mb-4 space-y-1" />
+									),
+									ol: ({ node, ...props }) => (
+										<ol {...props} className="list-decimal list-inside mb-4 space-y-1" />
+									),
+									li: ({ node, ...props }) => (
+										<li {...props} className="text-white/90" />
+									),
+									strong: ({ node, ...props }) => (
+										<strong {...props} className="font-semibold text-white" />
+									),
+									h1: ({ node, ...props }) => (
+										<h1 {...props} className="text-2xl font-bold text-white mb-3 mt-4 first:mt-0" />
+									),
+									h2: ({ node, ...props }) => (
+										<h2 {...props} className="text-xl font-bold text-white mb-2 mt-3 first:mt-0" />
+									),
+									h3: ({ node, ...props }) => (
+										<h3 {...props} className="text-lg font-semibold text-white mb-2 mt-3 first:mt-0" />
+									),
+								}}
+							>
+								{response}
+							</ReactMarkdown>
+							{isLoading && status !== 'complete' && <span className="inline-block w-2 h-5 bg-purple-400 animate-pulse ml-0.5" />}
 						</div>
 					</div>
 				)}
@@ -216,82 +304,13 @@ export function App() {
 						arXiv
 					</a>
 					{' • '}
-					<a href="https://agentuity.devs" className="text-purple-400 hover:underline">
+					<a href="https://agentuity.dev" className="text-purple-400 hover:underline">
 						Learn to build agents →
 					</a>
 				</div>
 			</footer>
 		</div>
 	);
-}
-
-// ----- SearchStream Component -----
-
-/**
- * Handles the SSE connection to the backend.
- * Uses useEventStream from @agentuity/react to receive real-time updates.
- * 
- * Why a separate component? The useEventStream hook connects immediately when mounted.
- * By only rendering this component when we have an activeQuery, we control when to connect.
- * 
- * Docs: https://agentuity.dev/Frontend/react-hooks#streaming-with-useeventstream
- */
-function SearchStream({
-	query,
-	onStreamUpdate,
-	onActivity,
-	onComplete,
-	onError,
-}: {
-	query: string;
-	onStreamUpdate: (text: string) => void;
-	onActivity: (entry: Omit<ActivityEntry, 'id'>) => void;
-	onComplete: () => void;
-	onError: (message: string) => void;
-}) {
-	// Accumulate tokens in a ref to avoid React state race conditions
-	const textRef = useRef('');
-
-	// Connect to the SSE endpoint
-	const { data: rawData, error, close } = useEventStream('/api/search', {
-		query: new URLSearchParams({ query, maxResults: '5' }),
-	});
-
-	// Handle incoming messages
-	const data = rawData as StreamMessage | undefined;
-
-	useEffect(() => {
-		if (!data) return;
-
-		switch (data.type) {
-			case 'tool_call':
-			case 'tool_result':
-			case 'llm_start':
-				onActivity({ type: data.type, message: data.message || '' });
-				break;
-			case 'token':
-				// Accumulate tokens synchronously to avoid race conditions
-				textRef.current += data.content || '';
-				onStreamUpdate(textRef.current);
-				break;
-			case 'complete':
-				onActivity({ type: 'complete', message: data.message || '✅ Done' });
-				close();
-				onComplete();
-				break;
-			case 'error':
-				close();
-				onError(data.message || 'An error occurred');
-				break;
-		}
-	}, [data, close, onStreamUpdate, onActivity, onComplete, onError]);
-
-	// Handle connection errors
-	useEffect(() => {
-		if (error) onError(error.message);
-	}, [error, onError]);
-
-	return null; // This component only handles the connection, no UI
 }
 
 // ----- Spinner Component -----
@@ -307,6 +326,25 @@ function Spinner() {
 			/>
 		</svg>
 	);
+}
+
+// ----- Activity Icon Component -----
+
+function ActivityIcon({ type }: { type: StreamEvent['type'] }) {
+	switch (type) {
+		case 'tool_call':
+			return <span className="text-blue-400">🔧</span>;
+		case 'tool_result':
+			return <span className="text-green-400">📄</span>;
+		case 'llm_start':
+			return <span className="text-purple-400">🤖</span>;
+		case 'complete':
+			return <span className="text-green-400">✅</span>;
+		case 'error':
+			return <span className="text-red-400">❌</span>;
+		default:
+			return <span>•</span>;
+	}
 }
 
 export default App;
