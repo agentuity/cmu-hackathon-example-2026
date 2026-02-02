@@ -64,16 +64,20 @@ Given ArXiv API data, provide:
 
 ## Papers
 For each paper, output:
-- [Title](pdf_url)
-  Authors: <first 3>
-  Category: <ML|AI Agents|GenAI|CV|NLP|Other>
-  <one-sentence summary (no label)>
+### [Title](pdf_url)
+Authors: <first 3>
+Category: <ML|AI Agents|GenAI|CV|NLP|Other>
+<one-sentence summary (no label)>
+
+(No bullet lists.)
 
 ## Hackathon Project Ideas
-2-3 creative project ideas inspired by the papers. For each:
-- Project name
-- One sentence pitch
-- Why it's good for a hackathon (doable in 24-48 hours)
+2-3 creative project ideas inspired by the papers. For each idea, output:
+### <Project name>
+Pitch: <one sentence>
+Why: <why it's good for a hackathon (doable in 24-48 hours)>
+
+(No bullet lists.)
 
 Be direct and concise. Do not ask follow-up questions - this is a one-shot response.`;
 
