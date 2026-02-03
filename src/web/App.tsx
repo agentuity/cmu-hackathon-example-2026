@@ -144,12 +144,12 @@ export function App() {
 	const isLoading = status === 'loading' || isStreaming;
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+		<div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-900">
 			{/* Header */}
 			<header className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
 				<div className="max-w-4xl mx-auto px-4 py-6">
 					<h1 className="text-3xl font-bold text-white">🔬 Hackathon Scout</h1>
-					<p className="text-purple-200 mt-1">
+					<p className="text-cyan-200 mt-1">
 						Find research papers and get hackathon project ideas
 					</p>
 				</div>
@@ -165,13 +165,13 @@ export function App() {
 							onChange={(e) => setQuery(e.target.value)}
 							onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
 							placeholder="Search for research topics..."
-							className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+							className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-cyan-500"
 							disabled={isLoading}
 						/>
 						<button
 							type="submit"
 							disabled={!query.trim() || isLoading}
-							className="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center gap-2"
+							className="px-6 py-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 disabled:bg-cyan-600/50 disabled:cursor-not-allowed text-white font-medium transition-colors flex items-center gap-2"
 						>
 							{isLoading && <Spinner />}
 							{isLoading ? 'Working...' : 'Search'}
@@ -239,7 +239,7 @@ export function App() {
 				{response && (
 					<div className="mb-8">
 						<h2 className="text-xl font-semibold text-white mb-4">💡 Results</h2>
-						<div className="p-6 rounded-lg bg-white/5 border border-white/10 text-white/90 leading-relaxed prose prose-invert prose-purple max-w-none">
+						<div className="p-6 rounded-lg bg-white/5 border border-white/10 text-white/90 leading-relaxed prose prose-invert prose-cyan max-w-none">
 							<ReactMarkdown
 								components={{
 									a: ({ node, ...props }) => (
@@ -247,7 +247,7 @@ export function App() {
 											{...props}
 											target="_blank"
 											rel="noreferrer"
-											className="text-purple-300 hover:text-purple-200 hover:underline"
+											className="text-cyan-300 hover:text-cyan-200 hover:underline"
 										/>
 									),
 									p: ({ node, ...props }) => (
@@ -278,7 +278,7 @@ export function App() {
 							>
 								{response}
 							</ReactMarkdown>
-							{isLoading && status !== 'complete' && <span className="inline-block w-2 h-5 bg-purple-400 animate-pulse ml-0.5" />}
+							{isLoading && status !== 'complete' && <span className="inline-block w-2 h-5 bg-cyan-400 animate-pulse ml-0.5" />}
 						</div>
 					</div>
 				)}
@@ -296,15 +296,15 @@ export function App() {
 			<footer className="border-t border-white/10 py-6 mt-8">
 				<div className="max-w-4xl mx-auto px-4 text-center text-white/40 text-sm">
 					Built with{' '}
-					<a href="https://agentuity.dev" className="text-purple-400 hover:underline">
+					<a href="https://agentuity.dev" className="text-cyan-400 hover:underline">
 						Agentuity
 					</a>{' '}
 					• Data from{' '}
-					<a href="https://arxiv.org" className="text-purple-400 hover:underline">
+					<a href="https://arxiv.org" className="text-cyan-400 hover:underline">
 						arXiv
 					</a>
 					{' • '}
-					<a href="https://agentuity.dev" className="text-purple-400 hover:underline">
+					<a href="https://agentuity.dev" className="text-cyan-400 hover:underline">
 						Learn to build agents →
 					</a>
 				</div>
@@ -337,7 +337,7 @@ function ActivityIcon({ type }: { type: StreamEvent['type'] }) {
 		case 'tool_result':
 			return <span className="text-green-400">📄</span>;
 		case 'llm_start':
-			return <span className="text-purple-400">🤖</span>;
+			return <span className="text-cyan-400">🤖</span>;
 		case 'complete':
 			return <span className="text-green-400">✅</span>;
 		case 'error':
